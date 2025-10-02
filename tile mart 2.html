@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TileMart</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; background: #f9fafb; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  nav input { padding: 0.25rem; margin-left: 0.5rem; }
+  .filters, .categories { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin: 1rem; }
+  button { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+  button.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  .products { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; padding: 1rem; }
+  .product-card { background: #fff; border-radius: 0.5rem; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .product-card img { width: 100%; height: 200px; object-fit: cover; }
+  .product-card .info { padding: 0.5rem; }
+  footer { position: relative; text-align: center; padding: 2rem; background: #fff; margin-top: 2rem; }
+  footer img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; z-index: 0; }
+  footer .content { position: relative; z-index: 1; max-width: 600px; margin: auto; }
+  .cart-sidebar { position: fixed; top: 0; right: 0; width: 300px; height: 100%; background: #fff; box-shadow: -2px 0 10px rgba(0,0,0,0.2); padding: 1rem; transform: translateX(100%); transition: transform 0.3s ease; overflow-y: auto; }
+  .cart-sidebar.show { transform: translateX(0); }
+  .checkout, .success { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+  .active-section { display: flex; }
+  input { padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.25rem; width: 100%; margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <h1>TileMart</h1>
+  <div>
+    <input type="text" id="search" placeholder="Search tiles...">
+    <button id="cart-button">Cart (<span id="cart-count">0</span>)</button>
+  </div>
+</nav>
+
+<div class="filters" id="color-filters"></div>
+<div class="categories" id="category-filters"></div>
+<div class="products" id="product-list"></div>
+
+<footer>
+  <img src="https://i.pinimg.com/736x/7e/23/f9/7e23f98c89ab999013f76ab7f0d30fe8.jpg" alt="Tile background">
+  <div class="content">
+    <h2>About TileMart</h2>
+    <p>At TileMart, we bring you the finest selection of tiles from around the world. From luxurious marbles to durable granite, elegant porcelain, and artistic mosaics, our mission is to provide top-quality products to transform your spaces.</p>
+    <p>Contact us: support@tilemart.com | +91 98765 43210</p>
+  </div>
+</footer>
+
+<div class="cart-sidebar" id="cart-sidebar">
+  <h2>Your Cart</h2>
+  <div id="cart-items"></div>
+  <div>Total: ₹<span id="cart-total">0</span></div>
+  <button id="checkout-button">Checkout</button>
+  <button id="close-cart">Close</button>
+</div>
+
+<div class="checkout" id="checkout-section">
+  <h2>Checkout</h2>
+  <div id="order-summary"></div>
+  <input type="text" id="card-number" placeholder="Card Number">
+  <input type="text" id="expiry" placeholder="MM/YY">
+  <input type="text" id="cvv" placeholder="CVV">
+  <input type="text" id="card-name" placeholder="Cardholder Name">
+  <button id="pay-now">Pay Now</button>
+  <button id="back-btn">Back</button>
+</div>
+
+<div class="success" id="success-section">
+  <h2>Payment Successful ✅</h2>
+  <p>Thank you for your purchase! Your order has been placed successfully.</p>
+  <button id="continue-shopping">Continue Shopping</button>
+</div>
+
+<script>
+const products = [
+  {id:1,name:"Marble White Tile",price:2000,image:"https://i.pinimg.com/736x/7e/23/f9/7e23f98c89ab999013f76ab7f0d30fe8.jpg", category:"Marble"},
+  {id:2,name:"Granite Black Tile",price:2500,image:"https://i.pinimg.com/1200x/61/d7/59/61d759263cdf397dc5545b5da1e404a5.jpg", category:"Granite"},
+  {id:3,name:"Ceramic Beige Tile",price:1500,image:"https://i.pinimg.com/1200x/0b/4d/97/0b4d97d6d7ea6045d000612b63ac1234.jpg", category:"Ceramic"},
+  {id:4,name:"Porcelain Gray Tile",price:2200,image:"https://i.pinimg.com/736x/27/82/9a/27829ad84125506a6a60bdcc66af18fd.jpg", category:"Porcelain"},
+  {id:5,name:"Marble Brown Tile",price:2100,image:"https://i.pinimg.com/736x/ee/82/15/ee8215e4c2aca56ad175b80c620de90a.jpg", category:"Marble"},
+  {id:6,name:"Granite White Tile",price:2600,image:"https://i.pinimg.com/736x/cf/49/f3/cf49f3becc97d8b542eb701b5335eea0.jpg", category:"Granite"},
+  {id:7,name:"Ceramic Gray Tile",price:1600,image:"https://i.pinimg.com/736x/1a/c9/f4/1ac9f4062809d6b4a698d6b62766501c.jpg", category:"Ceramic"},
+  {id:8,name:"Porcelain Beige Tile",price:2300,image:"https://i.pinimg.com/736x/bd/38/79/bd38794ed82b899dc02ba20d747844a9.jpg", category:"Porcelain"}
+];
+
+let cart = [];
+
+function renderCategories() {
+  const categorySet = [...new Set(products.map(p => p.category))];
+  const categoryDiv = document.getElementById('category-filters');
+  categoryDiv.innerHTML = '';
+  categorySet.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.textContent = cat;
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.categories button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderProducts(cat);
+    });
+    categoryDiv.appendChild(btn);
+  });
+  // Add 'All' button
+  const allBtn = document.createElement('button');
+  allBtn.textContent = 'All';
+  allBtn.classList.add('active');
+  allBtn.addEventListener('click', ()=>{
+    document.querySelectorAll('.categories button').forEach(b=>b.classList.remove('active'));
+    allBtn.classList.add('active');
+    renderProducts();
+  });
+  categoryDiv.prepend(allBtn);
+}
+
+function renderProducts(category) {
+  const list = document.getElementById('product-list');
+  list.innerHTML = '';
+  let filtered = category ? products.filter(p=>p.category===category) : products;
+  filtered.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'product-card';
+    div.innerHTML = `<img src='${p.image}' alt='${p.name}'><div class='info'><h3>${p.name}</h3><p>₹${p.price}</p><p>Category: ${p.category}</p><button onclick='addToCart(${p.id})'>Add to Cart</button></div>`;
+    list.appendChild(div);
+  });
+}
+
+function addToCart(id){
+  const product = products.find(p=>p.id===id);
+  cart.push(product);
+  updateCart();
+}
+
+function updateCart(){
+  document.getElementById('cart-count').textContent = cart.length;
+  const itemsDiv = document.getElementById('cart-items');
+  itemsDiv.innerHTML = '';
+  let total = 0;
+  cart.forEach(item => {
+    const div = document.createElement('div');
+    div.textContent = `${item.name} - ₹${item.price}`;
+    itemsDiv.appendChild(div);
+    total += item.price;
+  });
+  document.getElementById('cart-total').textContent = total;
+}
+
+document.getElementById('cart-button').addEventListener('click',()=>{
+  document.getElementById('cart-sidebar').classList.toggle('show');
+});
+
+document.getElementById('checkout-button').addEventListener('click',()=>{
+  document.getElementById('checkout-section').classList.add('active-section');
+  document.getElementById('cart-sidebar').classList.remove('show');
+  const summary = document.getElementById('order-summary');
+  summary.innerHTML = cart.map(item => `<div>${item.name} - ₹${item.price}</div>`).join('') + `<div>Total: ₹${cart.reduce((sum,i)=>sum+i.price,0)}</div>`;
+});
+
+document.getElementById('back-btn').addEventListener('click',()=>{
+  document.getElementById('checkout-section').classList.remove('active-section');
+});
+
+document.getElementById('pay-now').addEventListener('click',()=>{
+  document.getElementById('checkout-section').classList.remove('active-section');
+  document.getElementById('success-section').classList.add('active-section');
+  cart = [];
+  updateCart();
+});
+
+document.getElementById('continue-shopping').addEventListener('click',()=>{
+  document.getElementById('success-section').classList.remove('active-section');
+  renderProducts();
+});
+
+renderCategories();
+renderProducts();
+</script>
+
+</body>
+</html>
